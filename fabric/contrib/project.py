@@ -3,6 +3,8 @@ Useful non-core functionality, e.g. functions composing multiple operations.
 """
 from os import getcwd, sep
 import os.path
+import platform
+import subprocess
 from tempfile import mkdtemp
 
 from fabric.network import needs_host, key_filenames, normalize
@@ -195,12 +197,17 @@ def upload_project(local_dir=None, remote_dir="", use_sudo=False):
     local_path, local_name = os.path.split(local_dir)
     local_path = local_path or '.'
     tar_file = "%s.tar.gz" % local_name
-    target_tar = os.path.join(remote_dir, tar_file)
+    target_tar = '/'.join([remote_dir, tar_file])
     tmp_folder = mkdtemp()
 
     try:
         tar_path = os.path.join(tmp_folder, tar_file)
-        local("tar -czf %s -C %s %s" % (tar_path, local_path, local_name))
+        if platform.system() == "Windows":
+            safe_path = subprocess.check_output(["cygpath", tar_path]).rstrip()
+            safe_path = str(safe_path, 'utf-8')
+            local("tar -czf %s -C %s %s" % (safe_path, local_path, local_name))
+        else:
+            local("tar -czf %s -C %s %s" % (tar_path, local_path, local_name))
         put(tar_path, target_tar, use_sudo=use_sudo)
         with cd(remote_dir):
             try:
